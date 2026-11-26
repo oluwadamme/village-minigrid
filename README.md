@@ -61,4 +61,17 @@ Assumptions of my own, not from a published source:
 
 ![A dry-season and a rainy-season week](figures/dispatch_weeks.png)
 
-RLI's own design for this cluster (96 kWp, 168 kWh, 77 kW generator; units not stated) was made under different, unstated assumptions, most likely much cheaper diesel. Notebook 03 (next) tests how the answer moves with the diesel price, battery cost, demand growth and the reliability target.
+RLI's own design for this cluster (96 kWp, 168 kWh, 77 kW generator; units not stated) was made under different, unstated assumptions, most likely much cheaper diesel.
+
+**Notebook 03 (sensitivity)** moves one uncertain input at a time (38 optimisations).
+
+![Diesel price sweep](figures/diesel_price_sweep.png)
+
+- **The solar design is insulated from the diesel price; diesel-only is not.** Above about $1.50 a litre the optimum has no main generator and costs about $0.34 per kWh (high demand) whatever diesel costs. Diesel-only rises from about $0.32 to $1.14 per kWh over the same range.
+- **A main generator only pays with cheap diesel.** At $0.50 a litre the optimum is diesel-led; at ESMAP's 2022 assumption of $1 it is already under 1 kW. RLI's 77 kW generator therefore implies diesel well under $1 a litre, or other assumptions.
+- **Equipment cost is the biggest remaining uncertainty.** ESMAP's 25th to 75th percentile costs give $0.31-0.43 per kWh (high demand). The sizes hardly change; the price does.
+
+  ![What moves the cost](figures/sensitivity_range.png)
+
+- **Full reliability is cheap.** Designing for 0 % household shortfall instead of 5 % adds only about 2 US cents per kWh, but without foresight even that design leaves households about 1.5-2.5 % short.
+- **Size for growth.** Built for today and run with 5 years of 5 % yearly growth, the system leaves households about a fifth of their energy short. Sized for year 5 (about 264 kWp and 710 kWh, high demand) it costs about the same per kWh.
