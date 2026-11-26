@@ -1,0 +1,14 @@
+# Python 3.11. Pinned to the versions installed and tested on 2026-11-26.
+highspy==1.16.0
+ipykernel==7.4.0
+jupyter==1.1.1
+linopy==0.10.1
+matplotlib==3.11.2
+nbconvert==7.17.2
+numpy==2.4.6
+openpyxl==3.1.5
+pandas==3.1.1
+pyarrow==26.0.1
+pypsa==1.4.0
+requests==2.34.2
+pyshp==3.1.9
