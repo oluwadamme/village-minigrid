@@ -4,7 +4,7 @@
 
 A solar mini-grid design study for Umon South (Biase LGA, Cross River State): about 312 households plus a primary health centre and a primary school. A model chooses the size of the solar panels, the battery and a diesel generator to keep the clinic and school always on at the lowest cost per kWh.
 
-> Work in progress. A modelling study built on public data, not a site survey.
+> Work in progress. A modelling study built on public data, not a site survey. Least-cost designs assume one typical weather year.
 
 ## Data sources
 
@@ -41,3 +41,24 @@ Assumptions of my own, not from a published source:
 - ESMAP's balance-of-system cost ($524/kW) applied per kW of peak demand (ESMAP does not state the unit basis).
 
 **Costs** are in [`docs/cost_table.md`](docs/cost_table.md) and `src/costs.py`, every number with its source. Diesel delivered to the village is about $2.68 per litre (₦3,728), so electricity from the generator costs about $0.94 per kWh, against about $0.04 per kWh of solar output before storage.
+
+**Notebook 02 (optimal mix)** sizes the system with PyPSA for 3 designs x 2 household-demand cases x 2 clinic cases. Every run passes hand checks: supply equals demand every hour, the battery stays in its limits, and the cost recomputed outside PyPSA matches the solver.
+
+![Cost per kWh by design](figures/lcoe_by_design.png)
+
+- **At today's diesel price (about $2.68 a litre delivered) the least-cost design is solar plus battery.** The optimiser builds no main generator in any case. Diesel only would cost $1.03-1.26 per kWh.
+- **The optimiser cheats a little: it knows the weather in advance.** It keeps the clinic and school on by rationing households before cloudy spells. Run hour by hour with a simple rule and no foresight, the same system would cut the clinic and school for about 330 hours a year.
+- **Fix: a 3-5 kW backup generator for the clinic and school only.** It keeps them on in every hour, burns 60-100 litres of diesel a year and adds about $220-380 a year.
+
+| Final design | Low household demand | High household demand |
+|---|---|---|
+| Solar PV | 54-62 kWp | 209-217 kWp |
+| Battery (Li-ion) | 133-141 kWh | 558-565 kWh |
+| Battery inverter | 16-17 kW | 65-67 kW |
+| Backup generator (clinic and school only) | 3-5 kW | 3-5 kW |
+| Households' energy not served | 4.3-4.6 % | 4.8-4.9 % |
+| Delivered cost per kWh | $0.52-0.57 (₦723-786) | $0.34 (₦468-475) |
+
+![A dry-season and a rainy-season week](figures/dispatch_weeks.png)
+
+RLI's own design for this cluster (96 kWp, 168 kWh, 77 kW generator; units not stated) was made under different, unstated assumptions, most likely much cheaper diesel. Notebook 03 (next) tests how the answer moves with the diesel price, battery cost, demand growth and the reliability target.
