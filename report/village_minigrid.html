@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Solar or diesel for a Nigerian village?</title>
+<style>
+  @page { size: A4; margin: 12mm 14mm 11mm 14mm; }
+  body { font-family: "Charter", "Georgia", serif; font-size: 9.2pt; line-height: 1.3; color: #111; margin: 0; }
+  h1 { font-size: 15pt; margin: 0 0 2pt 0; line-height: 1.2; }
+  .sub { font-size: 10pt; color: #333; margin-bottom: 2pt; }
+  .meta { font-size: 8.6pt; color: #555; margin-bottom: 8pt; border-bottom: 0.6pt solid #999; padding-bottom: 5pt; }
+  h2 { font-size: 10.6pt; margin: 9pt 0 3pt 0; }
+  p { margin: 0 0 5pt 0; text-align: justify; hyphens: auto; }
+  ul { margin: 0 0 5pt 0; padding-left: 14pt; }
+  li { margin-bottom: 2.5pt; text-align: justify; }
+  table { break-inside: avoid; border-collapse: collapse; width: 100%; font-size: 8.6pt; margin: 3pt 0 4pt 0; }
+  th, td { border-bottom: 0.5pt solid #bbb; padding: 2pt 4pt; text-align: left; vertical-align: top; }
+  th { border-bottom: 0.9pt solid #555; font-weight: 600; }
+  td.n, th.n { text-align: right; white-space: nowrap; }
+  figure { margin: 4pt 0 5pt 0; text-align: center; break-inside: avoid; }
+  figure img { width: 54%; }
+  figure.wide img { width: 84%; }
+  figcaption { font-size: 8.4pt; color: #333; text-align: left; margin-top: 2pt; }
+  .page2 { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<h1>Solar or diesel for a Nigerian village?</h1>
+<div class="sub">A least-cost mini-grid for 312 households, a health centre and a school in Umon South, Cross River State, and how far the answer holds</div>
+<div class="meta">Damilola Adeniyi &middot; November 2026 &middot; Code and notebooks: github.com/oluwadamme/village-minigrid &middot; Modelling study on public data, not a site survey.</div>
+
+<h2>1. The question</h2>
+<p>Many Nigerian villages far from the national grid get their electricity from small petrol and diesel generators, at whatever the fuel costs by the time it reaches them. In Cross River State diesel cost about &#8358;3,390 a litre in May 2026 (National Bureau of Statistics), before transport to a village. Solar mini-grids are the main alternative, and the planning question is how big each part should be: how many panels, how much battery, and whether a diesel generator is still worth having. My background is smart metering and energy data in Nigeria; this project looks at the step before metering, sizing the supply. For one real village cluster it asks which mix of solar, battery and diesel gives a reliable supply at the lowest cost, and how much that answer depends on the diesel price, equipment costs, the reliability target and demand growth.</p>
+
+<h2>2. Site, demand and costs</h2>
+<p><b>Site.</b> Cluster 10645 in Umon South ward, Biase LGA, from the Reiner Lemoine Institut / GIZ rural electrification dataset for Cross River: 312 customers, a primary health centre and a primary school, with no grid connection. <b>Solar:</b> the PVGIS 5.3 typical year for the site gives about 1,450&#8239;kWh per kWp a year, falling to 3.1&#8239;kWh/kWp a day in July, the rainy season.</p>
+<p><b>Demand.</b> One year of hourly demand is built with the RAMP model from appliance counts and usage hours in the World Bank Multi-Tier Framework survey of Nigeria (2018, survey-weighted). The survey covers only the North-West, so Cross River households are assumed to be similar. Two household cases bracket the answer: <i>low</i>, like the average rural household in the survey, and <i>high</i>, like rural households already on the grid. The school (2.4&#8239;kWh/day) follows a Lighting Global design for a Nigerian school; the clinic is 19&#8239;kWh/day (Lighting Global health-centre design) or 36&#8239;kWh/day (SEforALL, Type 2 health centre). Village totals are about 136 and 568&#8239;kWh/day, with the peak at 21:00&#8211;22:00, after sunset.</p>
+<p><b>Costs.</b> Equipment costs are the medians from the World Bank ESMAP report <i>Mini Grids for Half a Billion People</i> (2022): solar $441/kWp, lithium-ion battery $314/kWh, battery inverter $415/kW, distribution and meters $250 per customer. The generator ($172/kW) and lifetimes come from Esan et al. (2019, Nigeria). Diesel delivered to the village is the state price plus 10&#8239;% for transport, $2.68 a litre; at 0.33&#8239;L/kWh, generator electricity costs about $0.94/kWh against $0.04/kWh for solar before storage. Every investment is turned into an equal yearly cost at a 10&#8239;% real discount rate over 20 years; Naira at the CBN rate of 25 November 2026 (&#8358;1,391.75 per US$).</p>
+
+<h2>3. Method</h2>
+<p>A linear optimisation in PyPSA (HiGHS solver) chooses the sizes of solar, battery, inverter and generator and the dispatch in all 8,760 hours of the year, at least total yearly cost. The clinic and school must be supplied in every hour; households may go short of at most 5&#8239;% of their yearly energy. Three designs (diesel only, solar plus battery, and a hybrid allowed to build all three) are solved for both household cases and both clinic cases, 12 runs in all. Each run is checked outside the solver: hourly energy balance, battery limits and total cost. Battery wear is checked afterwards: about 325 full cycles a year against a rating of 3,000 cycles gives a 9.2-year life instead of 10, and the extra replacement cost is added.</p>
+<p><b>Foresight check.</b> An optimiser that sees the whole year knows the weather in advance. Each least-cost system is therefore also run hour by hour with a simple rule and no foresight: solar first, the battery serves households only above a reserve, the clinic and school may use it down to its floor, and the generator runs last. The cost reported for the final design comes from this run.</p>
+
+<h2>4. Results</h2>
+<ul>
+<li><b>At today's diesel price the least-cost design is solar plus battery.</b> The hybrid optimisation builds no main generator in any of the four demand cases. Delivered electricity costs $0.34/kWh (about &#8358;470) for the high household case and $0.52&#8211;0.57 for the low case, where fixed costs are spread over less energy. Diesel only would cost $1.03&#8211;1.26/kWh and burn 16,000&#8211;65,000 litres a year.</li>
+<li><b>The optimiser cheats a little.</b> With perfect foresight it keeps the clinic and school on by rationing households before cloudy spells. Run with the simple rule, the same system cuts the clinic and school for about 330 hours a year. A 3&#8211;5&#8239;kW backup generator serving only the clinic and school closes the gap: it burns 60&#8211;100 litres a year and adds about $220&#8211;380 a year.</li>
+<li><b>About a third of the solar output is spilled.</b> The array is sized for the rainy season, leaving a dry-season surplus that milling or cold storage could use (not modelled).</li>
+</ul>
+<table>
+<tr><th>Final design</th><th class="n">Low household demand</th><th class="n">High household demand</th></tr>
+<tr><td>Solar PV / battery (Li-ion) / battery inverter</td><td class="n">54&#8211;62&#8239;kWp / 133&#8211;141&#8239;kWh / 16&#8211;17&#8239;kW</td><td class="n">209&#8211;217&#8239;kWp / 558&#8211;565&#8239;kWh / 65&#8211;67&#8239;kW</td></tr>
+<tr><td>Backup generator (clinic and school only)</td><td class="n">3&#8211;5&#8239;kW</td><td class="n">3&#8211;5&#8239;kW</td></tr>
+<tr><td>Households' energy not served / clinic and school hours cut</td><td class="n">4.3&#8211;4.6&#8239;% / 0</td><td class="n">4.8&#8211;4.9&#8239;% / 0</td></tr>
+<tr><td>Delivered cost per kWh</td><td class="n">$0.52&#8211;0.57 (&#8358;723&#8211;786)</td><td class="n">$0.34 (&#8358;468&#8211;475)</td></tr>
+</table>
+<figure>
+<img src="../figures/dispatch_weeks.png" alt="Hourly dispatch in a dry-season and a rainy-season week">
+<figcaption><b>Figure 1.</b> Least-cost system for high household demand, as dispatched by the optimiser, in a dry-season week and the worst rainy-season week. In January the battery is full by late afternoon and every household is served. In July households are cut at many evening peaks: the optimiser spends most of its 5&#8239;% shortfall allowance between May and October.</figcaption>
+</figure>
+
+<h2>5. How far the answer holds</h2>
+<p>One input is moved at a time; each point is re-optimised and re-run without foresight (38 optimisations).</p>
+<figure class="wide">
+<img src="../figures/diesel_price_sweep.png" alt="Cost per kWh and system sizes against the delivered diesel price">
+<figcaption><b>Figure 2.</b> Delivered diesel price swept from $0.50 to $3.00 a litre (dotted lines: ESMAP's 2022 assumption and today's price). Left and centre: what the least-cost hybrid builds for each household case. Right: cost per kWh of the hybrid and of diesel only.</figcaption>
+</figure>
+<ul>
+<li><b>The solar design is insulated from the diesel price; diesel only is not.</b> Above about $1.50 a litre the optimum has no main generator and costs about $0.34/kWh (high demand) whatever diesel costs, while diesel only rises from $0.32 to $1.14/kWh over the sweep. A main generator wins only with cheap diesel: at $0.50 a litre the optimum is led by diesel, and at ESMAP's 2022 assumption of $1 a litre it is already under 1&#8239;kW. RLI's own design for this cluster (96&#8239;kWp, 168&#8239;kWh and a 77&#8239;kW generator) therefore implies diesel well under $1 a litre, or assumptions not given in the dataset.</li>
+<li><b>Equipment cost is the largest remaining uncertainty.</b> ESMAP's 25th and 75th percentile costs give $0.31&#8211;0.43/kWh; the sizes hardly change. Battery cost alone, &plusmn;30&#8239;%, gives $0.29&#8211;0.39/kWh.</li>
+<li><b>Full reliability is cheap, on paper.</b> A 0&#8239;% household shortfall target instead of 5&#8239;% adds about 2 US cents per kWh, but without foresight even that system leaves households 1.5&#8211;2.5&#8239;% short.</li>
+<li><b>Size for growth.</b> Built for today and run with demand growing 5&#8239;% a year, the system leaves households short of about a fifth of their energy by year 5. Sized for year 5 (about 264&#8239;kWp and 710&#8239;kWh) it costs about the same per kWh, which argues for building ahead or in planned stages.</li>
+</ul>
+
+<h2>6. Limits</h2>
+<ul>
+<li>One typical weather year. A run of bad rainy seasons is not tested, and the optimisation still has perfect foresight; the rule-based run is only a first correction.</li>
+<li>Demand is built from North-West survey households, with usage windows and some wattages of my own. No one in Umon South was asked what they use or would pay for.</li>
+<li>Costs are ESMAP's 2021 medians across many countries, not Nigerian quotes. Import duties, financing costs, subsidies and salvage value are left out.</li>
+<li>The low-voltage network is a cost per customer only: no losses, voltage limits or cable layout. Whether households can afford &#8358;470 or more per kWh is not studied.</li>
+</ul>
+
+<h2>7. What I take from it</h2>
+<p>At today's delivered diesel price the question for a village like this is no longer solar or diesel, but how much battery. Diesel shrinks to a small backup that keeps the health centre and school on through rainy spells, and that role only shows up once the optimiser's perfect foresight is taken away. The least-cost answer holds for any diesel price above about $1.50 a litre; what moves it most is equipment cost and how fast demand grows. The next steps I would take are testing many weather years instead of one, modelling the village's low-voltage network in pandapower (which my meter-trust project already uses), and comparing the resulting cost per kWh with what households now spend on generator fuel.</p>
+
+</body>
+</html>
