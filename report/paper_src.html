@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Least-cost sizing of a solar-battery-diesel mini-grid for an off-grid village in Cross River State, Nigeria</title>
+<style>
+  @page { size: A4; margin: 17mm 14mm 18mm 14mm; }
+  body { font-family: "Times New Roman", "Times", "Nimbus Roman", serif; font-size: 9.6pt; line-height: 1.17; color: #000; margin: 0; }
+  .title { font-size: 20pt; text-align: center; line-height: 1.15; margin: 0 4mm 6pt 4mm; font-weight: normal; }
+  .author { text-align: center; font-size: 10.5pt; margin-bottom: 1pt; }
+  .affil { text-align: center; font-size: 8.8pt; font-style: italic; margin-bottom: 10pt; }
+  .cols { column-count: 2; column-gap: 6mm; }
+  .abstract, .terms { font-size: 8.6pt; font-weight: bold; text-align: justify; margin: 0 0 5pt 0; hyphens: auto; }
+  .abstract i, .terms i { font-weight: bold; }
+  h2 { font-size: 9.6pt; font-weight: normal; font-variant: small-caps; text-align: center; margin: 9pt 0 4pt 0; letter-spacing: 0.2pt; break-after: avoid; }
+  h3 { font-size: 9.6pt; font-weight: normal; font-style: italic; margin: 6pt 0 2pt 0; break-after: avoid; }
+  p { margin: 0 0 3pt 0; text-align: justify; text-indent: 1em; hyphens: auto; }
+  p.ni { text-indent: 0; }
+  ul { margin: 0 0 4pt 0; padding-left: 12pt; }
+  li { text-align: justify; hyphens: auto; margin-bottom: 1.5pt; }
+  figure { margin: 5pt 0 6pt 0; break-inside: avoid; }
+  figure img { width: 100%; display: block; }
+  figure.span { column-span: all; margin: 4pt 0 8pt 0; }
+  figure.span img { width: 82%; margin: 0 auto; }
+  figcaption { font-size: 8pt; text-align: justify; margin-top: 3pt; hyphens: auto; }
+  .tbl { break-inside: avoid; margin: 6pt 0 7pt 0; }
+  .tcap { font-size: 8pt; text-align: center; font-variant: small-caps; margin-bottom: 3pt; }
+  .tcap b { font-weight: normal; display: block; }
+  table { border-collapse: collapse; width: 100%; font-size: 7.8pt; line-height: 1.15; }
+  th, td { padding: 1.4pt 3pt; text-align: left; vertical-align: top; }
+  thead th { border-top: 0.9pt solid #000; border-bottom: 0.6pt solid #000; font-weight: normal; font-style: italic; }
+  tbody tr:last-child td { border-bottom: 0.9pt solid #000; }
+  td.n, th.n { text-align: right; white-space: nowrap; }
+  .tnote { font-size: 7.4pt; margin-top: 2pt; text-align: justify; }
+  .eq { display: flex; align-items: center; margin: 3pt 0 4pt 0; break-inside: avoid; }
+  .eq math { flex: 1; font-size: 10.5pt; }
+  .eq .no { width: 7mm; text-align: right; }
+  .refs { font-size: 7.8pt; line-height: 1.16; }
+  .refs div { display: flex; margin-bottom: 2.2pt; text-align: left; }
+  .refs span.k { min-width: 6.5mm; }
+  .refs span.t { flex: 1; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+
+<div class="title">Least-Cost Sizing of a Solar&ndash;Battery&ndash;Diesel Mini-Grid for an Off-Grid Village in Cross River State, Nigeria, With a No-Foresight Operating Check</div>
+<div class="author">Damilola Adeniyi</div>
+<div class="affil">Independent study &middot; Code, data scripts and notebooks: github.com/oluwadamme/village-minigrid</div>
+
+<div class="cols">
+
+<p class="abstract"><i>Abstract</i>&mdash;Off-grid villages in Nigeria rely largely on small petrol and diesel generators, and diesel delivered to a village in Cross River State now costs about US$2.7 per litre. This study sizes a mini-grid for one village cluster in Umon South, Biase LGA (312 customers, a primary health centre and a primary school) using only public data: a rural-electrification cluster dataset, the World Bank Multi-Tier Framework survey for bottom-up demand modelled with RAMP, a PVGIS typical meteorological year and ESMAP cost benchmarks. A linear capacity-expansion model in PyPSA chooses PV, lithium-ion battery, inverter and diesel capacity over 8,760 hours, with the health centre and school always supplied and household shortfall capped at 5&#8239;% of annual household energy. Because the optimisation has perfect foresight, each design is also operated with a rule-based dispatch. At the current diesel price the least-cost system has no main generator: 209&ndash;217&#8239;kWp of PV and 558&ndash;565&#8239;kWh of storage deliver electricity at US$0.34/kWh in the high-demand case, against US$1.03&ndash;1.26/kWh for diesel only. Operated without foresight, the same system would interrupt the health centre and school for 339 hours a year (high-demand case); a 3&ndash;5&#8239;kW backup generator reserved for them removes these interruptions for 60&ndash;100 litres of diesel a year. Above about US$1.50/L no main generator is built at all, and the cost of energy is then more sensitive to equipment prices (US$0.31&ndash;0.43/kWh across ESMAP&rsquo;s interquartile range) and to demand growth than to the diesel price.</p>
+<p class="terms"><i>Index Terms</i>&mdash;Rural electrification, mini-grid, capacity expansion, energy storage, photovoltaic systems, diesel generator, PyPSA, sensitivity analysis, Nigeria.</p>
+
+<h2>I. Introduction</h2>
+<p>Many Nigerian villages far from the national grid obtain electricity from small petrol and diesel generators, paying whatever the fuel costs by the time it reaches them. In Cross River State the average retail price of diesel was about &#8358;3,390 per litre in May 2026 [@nbs], before transport to a village. Solar PV mini-grids with battery storage are the main alternative, and the planning question for each site is quantitative: how much PV, how much storage, and whether a diesel generator is still worth installing.</p>
+<p>This study answers that question for one real village cluster and asks how far the answer holds. It makes three contributions. First, it builds a reproducible least-cost design entirely from public data and open-source tools, with every cost and assumption traced to a source. Second, it checks the optimised design under a rule-based, no-foresight dispatch, and shows that the perfect foresight of the optimisation hides several hundred hours a year of supply interruptions at the health centre and school; it sizes a small backup generator that removes them. Third, it maps how the least-cost design and cost of energy respond to the diesel price, equipment costs, the reliability target and demand growth.</p>
+<p>Section II reviews related studies. Section III describes the site and data, Section IV the model, and Sections V and VI the results and sensitivity analysis. Section VII discusses limitations and Section VIII concludes.</p>
+
+<h2>II. Related Work</h2>
+<!--RELATED-->
+
+<h2>III. Site and Data</h2>
+<h3>A. Site</h3>
+<p>The site is cluster 10645 of the Reiner Lemoine Institut (RLI) and GIZ rural-electrification dataset for Cross River State [@rli], in Umon South ward, Biase LGA (5.36&deg;&#8239;N, 8.05&deg;&#8239;E). The dataset lists 312 customers and a primary health centre and primary school, with no grid connection. It also gives RLI&rsquo;s own design for the cluster (96&#8239;kWp of PV, 168&#8239;kWh of storage and a 77&#8239;kW generator), made under assumptions that are not published with the data.</p>
+
+<h3>B. Solar resource</h3>
+<p>Hourly global horizontal irradiance <i>G</i> and air temperature <i>T</i><sub>a</sub> come from the PVGIS 5.3 typical meteorological year (SARAH3, 2005&ndash;2023) [@pvgis]. PVGIS reports instantaneous values at the start of each UTC hour; the hourly mean is taken as the average of consecutive values and shifted to local time (UTC+1). At 5&deg;&#8239;N a near-horizontal array receives almost the same annual energy as a horizontal surface, so <i>G</i> is used as plane-of-array irradiance. PV output per kWp is</p>
+<div class="eq"><math display="block"><msub><mi>&pi;</mi><mi>t</mi></msub><mo>=</mo><mfrac><msub><mi>G</mi><mi>t</mi></msub><mn>1000</mn></mfrac><mrow><mo>[</mo><mn>1</mn><mo>+</mo><mi>&gamma;</mi><mo>(</mo><msub><mi>T</mi><mrow><mi>c</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>&minus;</mo><mn>25</mn><mo>)</mo><mo>]</mo></mrow><mo>(</mo><mn>1</mn><mo>&minus;</mo><mi>&lambda;</mi><mo>)</mo></math><span class="no">(1)</span></div>
+<div class="eq"><math display="block"><msub><mi>T</mi><mrow><mi>c</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>T</mi><mrow><mi>a</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>+</mo><mfrac><mrow><mtext>NOCT</mtext><mo>&minus;</mo><mn>20</mn></mrow><mn>800</mn></mfrac><msub><mi>G</mi><mi>t</mi></msub></math><span class="no">(2)</span></div>
+<p class="ni">with temperature coefficient <i>&gamma;</i>&nbsp;=&nbsp;&minus;0.4&#8239;%/&deg;C, NOCT&nbsp;=&nbsp;45&nbsp;&deg;C and system losses <i>&lambda;</i>&nbsp;=&nbsp;14&#8239;% (the PVGIS default). The annual yield is 1,450&#8239;kWh/kWp, falling from about 4.6&#8239;kWh/kWp/day in January to 3.1 in July, the core of the rainy season (Fig.&nbsp;1).</p>
+<figure><img src="../figures/solar_year.png" alt="PV yield by month and average day"><figcaption>Fig. 1. PV yield per kWp at the site: daily mean by month (left) and average daily profile in the dry and rainy seasons (right).</figcaption></figure>
+
+<h3>C. Demand</h3>
+<p>Household demand is built bottom-up with RAMP [@ramp], a stochastic model that generates load profiles from appliance ownership, power ratings, daily hours of use and usage windows. Appliance counts and hours come from the World Bank Multi-Tier Framework (MTF) household survey of Nigeria (2018) [@mtf], [@mtfbook], with survey weights. The survey covers only the North-West, so households in Cross River are assumed to use electricity in the same way. Two cases bracket the uncertainty: <i>low</i>, households resembling the average rural survey household (most not yet electrified), and <i>high</i>, households resembling rural households already connected to the grid. Ratings not reported in the survey are taken from RAMP examples, the Lighting Global design tool [@lg] or nameplate values. Usage windows are the author&rsquo;s assumptions, widened where needed to fit the hours reported in the survey; appliance energy is fixed at count &times; rating &times; hours, so RAMP varies only the timing.</p>
+<p>The school load (2.4&#8239;kWh/day; closed in August and for two weeks at Christmas and Easter) follows the Lighting Global design for a Nigerian basic school [@lg]. The health centre is modelled twice: 18.8&#8239;kWh/day from the Lighting Global full primary-health-centre design [@lg], and 36&#8239;kWh/day for a Type&nbsp;2 primary health centre in the SEforALL Nigeria healthcare roadmap [@seforall]. The four resulting demand cases are summarised in Table&nbsp;I; the evening household peak at 21:00&ndash;22:00 occurs well after sunset (Fig.&nbsp;2).</p>
+
+<div class="tbl"><div class="tcap">Table I<b>Demand Cases (Annual Mean)</b></div>
+<table><thead><tr><th>Load</th><th class="n">Low</th><th class="n">High</th></tr></thead><tbody>
+<tr><td>312 households (kWh/day)</td><td class="n">114.7</td><td class="n">529.7</td></tr>
+<tr><td>Health centre (kWh/day)</td><td class="n">18.8</td><td class="n">36.0</td></tr>
+<tr><td>School (kWh/day)</td><td class="n">2.4</td><td class="n">2.4</td></tr>
+<tr><td>Village total (kWh/day)</td><td class="n">135.9&ndash;153.1</td><td class="n">550.9&ndash;568.2</td></tr>
+<tr><td>Annual peak (kW)</td><td class="n">15.5&ndash;16.0</td><td class="n">60.6&ndash;61.4</td></tr>
+</tbody></table>
+<div class="tnote">Column headings refer to the household case; totals and peaks span the two health-centre cases.</div></div>
+
+<figure><img src="../figures/demand_day.png" alt="Average daily demand profile"><figcaption>Fig. 2. Average daily demand by load, low household case with the low health-centre case (left) and high household case with the high health-centre case (right).</figcaption></figure>
+
+<h3>D. Costs</h3>
+<p>Equipment costs are the medians of ESMAP&rsquo;s 2022 mini-grid cost survey [@esmap], with its 25th and 75th percentiles used in the sensitivity analysis; generator cost and lifetimes follow Esan <i>et al.</i> [@esan] (Table&nbsp;II). The diesel price is the Cross River state average [@nbs] plus a 10&#8239;% surcharge for transport to the village (author&rsquo;s assumption), giving US$2.68/L at the Central Bank of Nigeria rate of &#8358;1,391.75 per US$ on 25 November 2026 [@cbn]. Fuel use is 0.33&#8239;L/kWh, the HOMER linear fuel curve [@homer] evaluated at half load. All investments are annualised with the capital recovery factor</p>
+<div class="eq"><math display="block"><mtext>CRF</mtext><mo>(</mo><mi>r</mi><mo>,</mo><mi>L</mi><mo>)</mo><mo>=</mo><mfrac><mrow><mi>r</mi><msup><mrow><mo>(</mo><mn>1</mn><mo>+</mo><mi>r</mi><mo>)</mo></mrow><mi>L</mi></msup></mrow><mrow><msup><mrow><mo>(</mo><mn>1</mn><mo>+</mo><mi>r</mi><mo>)</mo></mrow><mi>L</mi></msup><mo>&minus;</mo><mn>1</mn></mrow></mfrac></math><span class="no">(3)</span></div>
+<p class="ni">at a real discount rate <i>r</i>&nbsp;=&nbsp;10&#8239;% over component life <i>L</i>, without salvage value. Distribution and metering (US$250 per customer), balance of system (US$524 per kW of peak demand; ESMAP does not state the unit basis, so this is an assumption) and staff (US$5,100/yr) do not depend on the generation mix and are added after the optimisation.</p>
+
+<div class="tbl"><div class="tcap">Table II<b>Cost and Performance Assumptions</b></div>
+<table><thead><tr><th>Item</th><th class="n">Value</th><th class="n">Annualised</th><th>Source</th></tr></thead><tbody>
+<tr><td>PV incl. PV inverter, 25 yr</td><td class="n">$441/kWp</td><td class="n">$58.6/kWp</td><td>[@esmap]</td></tr>
+<tr><td>Li-ion battery, 10 yr</td><td class="n">$314/kWh</td><td class="n">$51.1/kWh</td><td>[@esmap], [@esan]</td></tr>
+<tr><td>Battery inverter, 10 yr</td><td class="n">$415/kW</td><td class="n">$77.5/kW</td><td>[@esmap]</td></tr>
+<tr><td>Diesel generator, 20 yr</td><td class="n">$172/kW</td><td class="n">$20.2/kW</td><td>[@esan]</td></tr>
+<tr><td>Generator energy (fuel, O&amp;M, wear)</td><td class="n" colspan="2">$0.937/kWh</td><td>[@nbs], [@homer], [@esmap], [@esan]</td></tr>
+<tr><td>Battery: cycles, DoD, round trip</td><td class="n" colspan="2">3,000; 80&#8239;%; 90&#8239;%</td><td>[@esmap]</td></tr>
+<tr><td>Distribution and meters</td><td class="n">$250/cust.</td><td class="n">$9,162/yr</td><td>[@esmap]</td></tr>
+</tbody></table>
+<div class="tnote">PV and inverter annualised costs include O&amp;M of US$10/kW/yr [@esmap]. Generator wear is capital divided by a 15,000-hour life [@esan] at half load. The 10-year inverter life is an assumption.</div></div>
+
+<h2>IV. Method</h2>
+<h3>A. Optimisation model</h3>
+<p>The mini-grid is modelled in PyPSA [@pypsa] as a single AC bus with hourly resolution over one year (<i>t</i>&nbsp;=&nbsp;1,&hellip;,8760) and solved as a linear program with HiGHS [@highs]. The decision variables are the PV capacity <i>P</i><sup>pv</sup>, battery energy capacity <i>E</i>, inverter rating <i>P</i><sup>inv</sup> and generator rating <i>P</i><sup>g</sup>, and the hourly PV output <i>p</i><sub>t</sub><sup>pv</sup>, generator output <i>p</i><sub>t</sub><sup>g</sup>, battery charge <i>c</i><sub>t</sub> and discharge <i>d</i><sub>t</sub>, state of energy <i>e</i><sub>t</sub> and unserved household demand <i>u</i><sub>t</sub>. The objective is the annual cost</p>
+<div class="eq"><math display="block"><mo movablelimits="false">min</mo><mspace width="0.3em"/><munder><mo>&sum;</mo><mi>k</mi></munder><msub><mi>a</mi><mi>k</mi></msub><msub><mi>X</mi><mi>k</mi></msub><mo>+</mo><munder><mo>&sum;</mo><mi>t</mi></munder><mrow><mo>(</mo><msub><mi>m</mi><mi>g</mi></msub><msubsup><mi>p</mi><mi>t</mi><mi>g</mi></msubsup><mo>+</mo><mi>&epsilon;</mi><msub><mi>u</mi><mi>t</mi></msub><mo>)</mo></mrow></math><span class="no">(4)</span></div>
+<p class="ni">where <i>X</i><sub>k</sub> are the four capacities, <i>a</i><sub>k</sub> their annualised costs (Table&nbsp;II), <i>m</i><sub>g</sub> the generator energy cost and <i>&epsilon;</i>&nbsp;=&nbsp;US$0.01/kWh a small tie-breaking cost on unserved energy. The constraints are</p>
+<div class="eq"><math display="block"><msubsup><mi>p</mi><mi>t</mi><mtext>pv</mtext></msubsup><mo>+</mo><msubsup><mi>p</mi><mi>t</mi><mi>g</mi></msubsup><mo>+</mo><mi>&eta;</mi><msub><mi>d</mi><mi>t</mi></msub><mo>&minus;</mo><msub><mi>c</mi><mi>t</mi></msub><mo>+</mo><msub><mi>u</mi><mi>t</mi></msub><mo>=</mo><msubsup><mi>D</mi><mi>t</mi><mtext>hh</mtext></msubsup><mo>+</mo><msubsup><mi>D</mi><mi>t</mi><mtext>cr</mtext></msubsup></math><span class="no">(5)</span></div>
+<div class="eq"><math display="block"><msub><mi>e</mi><mi>t</mi></msub><mo>=</mo><msub><mi>e</mi><mrow><mi>t</mi><mo>&minus;</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>&eta;</mi><msub><mi>c</mi><mi>t</mi></msub><mo>&minus;</mo><msub><mi>d</mi><mi>t</mi></msub><mo>,</mo><mspace width="0.5em"/><mo>(</mo><mn>1</mn><mo>&minus;</mo><mi>&delta;</mi><mo>)</mo><mi>E</mi><mo>&le;</mo><msub><mi>e</mi><mi>t</mi></msub><mo>&le;</mo><mi>E</mi><mo>,</mo><mspace width="0.5em"/><msub><mi>e</mi><mn>0</mn></msub><mo>=</mo><msub><mi>e</mi><mn>8760</mn></msub></math><span class="no">(6)</span></div>
+<div class="eq"><math display="block"><mn>0</mn><mo>&le;</mo><msubsup><mi>p</mi><mi>t</mi><mtext>pv</mtext></msubsup><mo>&le;</mo><msub><mi>&pi;</mi><mi>t</mi></msub><msup><mi>P</mi><mtext>pv</mtext></msup><mo>,</mo><mspace width="0.4em"/><mn>0</mn><mo>&le;</mo><msubsup><mi>p</mi><mi>t</mi><mi>g</mi></msubsup><mo>&le;</mo><msup><mi>P</mi><mi>g</mi></msup><mo>,</mo><mspace width="0.4em"/><mn>0</mn><mo>&le;</mo><msub><mi>c</mi><mi>t</mi></msub><mo>,</mo><msub><mi>d</mi><mi>t</mi></msub><mo>&le;</mo><msup><mi>P</mi><mtext>inv</mtext></msup></math><span class="no">(7)</span></div>
+<div class="eq"><math display="block"><mn>0</mn><mo>&le;</mo><msub><mi>u</mi><mi>t</mi></msub><mo>&le;</mo><msubsup><mi>D</mi><mi>t</mi><mtext>hh</mtext></msubsup><mo>,</mo><mspace width="0.6em"/><munder><mo>&sum;</mo><mi>t</mi></munder><msub><mi>u</mi><mi>t</mi></msub><mo>&le;</mo><mi>&sigma;</mi><munder><mo>&sum;</mo><mi>t</mi></munder><msubsup><mi>D</mi><mi>t</mi><mtext>hh</mtext></msubsup></math><span class="no">(8)</span></div>
+<p class="ni">with one-way efficiency <i>&eta;</i>&nbsp;=&nbsp;&radic;0.9, depth of discharge <i>&delta;</i>&nbsp;=&nbsp;0.8 and household shortfall cap <i>&sigma;</i>&nbsp;=&nbsp;5&#8239;%. A single bidirectional inverter is enforced by an added constraint that the charge and discharge ratings are equal. Critical loads <i>D</i><sup>cr</sup> (health centre and school) have no unserved variable and are therefore always supplied. The generator is linear, with no minimum load; this is a simplification.</p>
+
+<h3>B. Cases and verification</h3>
+<p>Three designs are solved for each of the four demand cases: diesel only (<i>P</i><sup>pv</sup>&nbsp;=&nbsp;<i>E</i>&nbsp;=&nbsp;0), PV and battery (<i>P</i><sup>g</sup>&nbsp;=&nbsp;0), and a hybrid in which all four capacities are free, giving 12 optimisations. Each solution is checked outside the solver: the hourly energy balance (5) holds to within 0.1&#8239;% of peak demand, the battery stays within its limits, and the annual cost recomputed from the capacities and hourly flows matches the solver objective to within 10<sup>&minus;4</sup>.</p>
+
+<h3>C. Battery wear</h3>
+<p>The battery is annualised over a 10-year calendar life, but heavy cycling may end its life sooner. After each run the equivalent full cycles per year <i>N</i>&nbsp;=&nbsp;&sum;<sub>t</sub>&nbsp;<i>&eta;d</i><sub>t</sub>&nbsp;/&nbsp;(<i>&delta;E</i>) give a life <i>L</i><sub>b</sub>&nbsp;=&nbsp;min(10,&nbsp;3000/<i>N</i>) years, and the extra annual cost <i>E</i>&nbsp;<i>C</i><sub>b</sub>[CRF(<i>r</i>,&nbsp;<i>L</i><sub>b</sub>)&nbsp;&minus;&nbsp;CRF(<i>r</i>,&nbsp;10)] is added to the cost of energy. This correction is applied after the optimisation and does not change the design.</p>
+
+<h3>D. No-foresight operation</h3>
+<p>The linear program optimises dispatch over the whole year at once and therefore knows the weather in advance. To test what an operator without a forecast would achieve, each design is also simulated hour by hour with a simple rule: PV serves the load first and its surplus charges the battery within the inverter rating; a deficit is met from the battery down to its 20&#8239;% floor, then from the generator; any remaining shortfall is cut from households first and from the critical loads only as a last resort. The simulation starts with a full battery. Two remedies for critical-load interruptions are compared: a battery reserve that households may not use, and a backup generator that supplies only the critical loads, sized to their annual peak rounded up to the next kW (3&#8239;kW or 5&#8239;kW).</p>
+
+<h3>E. Cost of energy</h3>
+<p>For the final design the delivered cost of energy is</p>
+<div class="eq"><math display="block"><mtext>LCOE</mtext><mo>=</mo><mfrac><mrow><munder><mo>&sum;</mo><mi>k</mi></munder><msub><mi>a</mi><mi>k</mi></msub><msub><mi>X</mi><mi>k</mi></msub><mo>+</mo><msub><mi>a</mi><mi>g</mi></msub><msup><mi>P</mi><mtext>bk</mtext></msup><mo>+</mo><msub><mi>m</mi><mi>g</mi></msub><msubsup><mi>W</mi><mi>g</mi><mtext>rule</mtext></msubsup><mo>+</mo><msub><mi>C</mi><mtext>wear</mtext></msub><mo>+</mo><msub><mi>C</mi><mtext>fixed</mtext></msub></mrow><msubsup><mi>W</mi><mtext>served</mtext><mtext>rule</mtext></msubsup></mfrac></math><span class="no">(9)</span></div>
+<p class="ni">where <i>P</i><sup>bk</sup> is the backup generator rating and generator energy <i>W</i><sub>g</sub> and served energy <i>W</i><sub>served</sub> come from the rule-based simulation, not from the optimisation.</p>
+
+<h3>F. Sensitivity analysis</h3>
+<p>One input is varied at a time for both household cases (with the low health-centre case), re-optimising the hybrid design and re-running the rule with the backup generator at each point: delivered diesel price US$0.50&ndash;3.00/L (eight values); battery cost &plusmn;30&#8239;%; all three ESMAP equipment costs at their 25th and 75th percentiles; the household shortfall cap at 0, 1 and 5&#8239;%; and demand growth of 5&#8239;% a year for five years, with the system sized either for today or for year five. This gives 38 further optimisations.</p>
+
+<h2>V. Results</h2>
+<h3>A. Least-cost mix</h3>
+<p>At the current diesel price the hybrid optimisation builds no main generator in any of the four demand cases, so the hybrid and PV&ndash;battery designs coincide (Fig.&nbsp;3, Table&nbsp;III). Diesel only costs two to three times as much and would burn 15,700&ndash;65,200 litres a year (42&ndash;174&#8239;t&nbsp;CO<sub>2</sub> [@ipcc]). The battery completes about 325 equivalent full cycles a year, which shortens its life from 10 to 9.2 years. About a third of the available PV energy (31&ndash;36&#8239;%) is curtailed, because the array is sized for the rainy season and the dry-season surplus cannot be stored.</p>
+
+<figure><img src="../figures/lcoe_by_design.png" alt="Cost of energy by design and demand case"><figcaption>Fig. 3. Delivered cost of energy for each design and demand case, including distribution, balance of system and staff. Results are from the optimisation, before the no-foresight check.</figcaption></figure>
+
+<div class="tbl"><div class="tcap">Table III<b>Optimisation Results at US$2.68/L Diesel</b></div>
+<table><thead><tr><th>Households / health centre</th><th class="n">Low/low</th><th class="n">Low/high</th><th class="n">High/low</th><th class="n">High/high</th></tr></thead><tbody>
+<tr><td>Diesel only: generator (kW)</td><td class="n">11.6</td><td class="n">12.1</td><td class="n">46.5</td><td class="n">47.0</td></tr>
+<tr><td>Diesel only: LCOE ($/kWh)</td><td class="n">1.26</td><td class="n">1.22</td><td class="n">1.04</td><td class="n">1.03</td></tr>
+<tr><td>Hybrid: PV (kWp)</td><td class="n">53.5</td><td class="n">62.0</td><td class="n">208.9</td><td class="n">216.8</td></tr>
+<tr><td>Hybrid: battery (kWh)</td><td class="n">133.3</td><td class="n">141.2</td><td class="n">558.0</td><td class="n">565.1</td></tr>
+<tr><td>Hybrid: main generator (kW)</td><td class="n">0</td><td class="n">0</td><td class="n">0</td><td class="n">0</td></tr>
+<tr><td>Hybrid: LCOE ($/kWh)</td><td class="n">0.56</td><td class="n">0.52</td><td class="n">0.34</td><td class="n">0.33</td></tr>
+</tbody></table></div>
+
+<h3>B. Effect of perfect foresight</h3>
+<p>The optimisation meets the critical loads in every hour partly by rationing households <i>before</i> cloudy spells, while the battery still holds charge. An operator without a forecast cannot do this. Under the rule-based dispatch the same system interrupts the health centre and school for 339 hours a year in the high/low case (Table&nbsp;IV). Holding back 30&#8239;% of the battery for the critical loads removes these interruptions but more than doubles the household shortfall, to 12.7&#8239;%. A 3&#8239;kW backup generator removes them while leaving the household shortfall at 4.9&#8239;%, for 61 litres of diesel a year.</p>
+
+<div class="tbl"><div class="tcap">Table IV<b>Operation With and Without Foresight (High/Low Case)</b></div>
+<table><thead><tr><th>Operation</th><th class="n">Household shortfall</th><th class="n">Critical hours cut</th><th class="n">Diesel (L/yr)</th></tr></thead><tbody>
+<tr><td>Optimisation (perfect foresight)</td><td class="n">5.0&#8239;%</td><td class="n">0</td><td class="n">0</td></tr>
+<tr><td>Rule, no remedy</td><td class="n">4.9&#8239;%</td><td class="n">339</td><td class="n">0</td></tr>
+<tr><td>Rule + 30&#8239;% battery reserve</td><td class="n">12.7&#8239;%</td><td class="n">0</td><td class="n">0</td></tr>
+<tr><td>Rule + 3&#8239;kW backup generator</td><td class="n">4.9&#8239;%</td><td class="n">0</td><td class="n">61</td></tr>
+</tbody></table></div>
+
+<p>Under perfect foresight the household shortfall is concentrated in the rainy season (May&ndash;October) and at the morning and evening peaks (Fig.&nbsp;4). Figure&nbsp;5 shows the dispatch in a dry-season week and in the worst rainy-season week.</p>
+<figure><img src="../figures/shortfall_timing.png" alt="Unserved household energy by month and hour"><figcaption>Fig. 4. Unserved household energy by month and by hour of day under perfect foresight (hybrid, high/low case).</figcaption></figure>
+
+<figure class="span"><img src="../figures/dispatch_weeks.png" alt="Hourly dispatch in a dry-season and rainy-season week"><figcaption>Fig. 5. Optimised hourly dispatch, high/low case, in a dry-season week (top) and the worst rainy-season week (bottom); dashed line: battery state of charge. In January the battery is full by late afternoon and all demand is met; in July households are cut at many evening peaks.</figcaption></figure>
+
+<h3>C. Final design</h3>
+<p>The final design combines the optimised capacities with the backup generator; its cost is computed with (9) from the rule-based operation (Table&nbsp;V). The backup generator adds US$220&ndash;380 a year, under 1&#8239;% of the total cost in the high-demand case. The cost of energy in the low-demand case is higher because the fixed costs of distribution, balance of system and staff are spread over less energy.</p>
+
+<div class="tbl"><div class="tcap">Table V<b>Final Design, Operated Without Foresight</b></div>
+<table><thead><tr><th>Household demand</th><th class="n">Low</th><th class="n">High</th></tr></thead><tbody>
+<tr><td>PV (kWp)</td><td class="n">54&ndash;62</td><td class="n">209&ndash;217</td></tr>
+<tr><td>Li-ion battery (kWh)</td><td class="n">133&ndash;141</td><td class="n">558&ndash;565</td></tr>
+<tr><td>Battery inverter (kW)</td><td class="n">16&ndash;17</td><td class="n">65&ndash;67</td></tr>
+<tr><td>Backup generator, critical loads (kW)</td><td class="n">3&ndash;5</td><td class="n">3&ndash;5</td></tr>
+<tr><td>Household energy not served</td><td class="n">4.3&ndash;4.6&#8239;%</td><td class="n">4.8&ndash;4.9&#8239;%</td></tr>
+<tr><td>Critical-load hours cut</td><td class="n">0</td><td class="n">0</td></tr>
+<tr><td>Diesel (L/yr)</td><td class="n">58&ndash;92</td><td class="n">61&ndash;100</td></tr>
+<tr><td>Delivered LCOE ($/kWh)</td><td class="n">0.52&ndash;0.57</td><td class="n">0.34</td></tr>
+<tr><td>Delivered LCOE (&#8358;/kWh)</td><td class="n">723&ndash;786</td><td class="n">468&ndash;475</td></tr>
+</tbody></table>
+<div class="tnote">Ranges span the two health-centre cases.</div></div>
+
+<figure class="span"><img src="../figures/diesel_price_sweep.png" alt="Diesel price sweep"><figcaption>Fig. 6. Delivered diesel price sweep. Left and centre: capacities chosen by the hybrid optimisation for the low and high household cases. Right: delivered cost of energy of the hybrid and diesel-only designs. Dotted lines mark ESMAP&rsquo;s 2022 assumption (US$1/L) and the current price (US$2.68/L).</figcaption></figure>
+
+<h2>VI. Sensitivity Analysis</h2>
+<h3>A. Diesel price</h3>
+<p>The least-cost design is insensitive to the diesel price over most of the range studied (Fig.&nbsp;6). At US$0.50/L the optimum is led by diesel, which supplies about 80&#8239;% of the energy. From US$0.75/L the diesel share falls below 5&#8239;%, at ESMAP&rsquo;s 2022 modelling assumption of US$1/L the main generator is already below 1&#8239;kW, and above about US$1.50/L none is built. The cost of energy of the hybrid design then stays near US$0.34/kWh (high demand) while that of diesel only rises from US$0.32 to US$1.14/kWh across the sweep. Between US$0.75 and US$1.25/L the small main generator saves little, and under the rule-based dispatch households lose 5.0&ndash;8.3&#8239;% of their energy, above the 5&#8239;% target.</p>
+
+
+
+<h3>B. Equipment costs, reliability and growth</h3>
+<p>Table&nbsp;VI and Fig.&nbsp;7 summarise the other sweeps. Equipment cost is the largest uncertainty: ESMAP&rsquo;s interquartile range moves the cost of energy by about a third while the capacities barely change. Tightening the household shortfall cap from 5&#8239;% to 0&#8239;% raises PV capacity by 14&ndash;20&#8239;% but the cost of energy by only about 2 US cents/kWh; however, without foresight even this design leaves households 1.5&ndash;1.7&#8239;% short. Demand growth matters most for reliability: a system sized for today leaves households short of about a fifth of their energy after five years of 5&#8239;% annual growth, whereas a system sized for year five (264&#8239;kWp, 710&#8239;kWh, high case) costs slightly less per kWh because its fixed costs are spread over more energy.</p>
+
+<div class="tbl"><div class="tcap">Table VI<b>One-at-a-Time Sensitivity (Delivered LCOE, $/kWh)</b></div>
+<table><thead><tr><th>Input</th><th>Range</th><th class="n">Low hh.</th><th class="n">High hh.</th></tr></thead><tbody>
+<tr><td>Base case</td><td>&ndash;</td><td class="n">0.565</td><td class="n">0.342</td></tr>
+<tr><td>Diesel price</td><td>$0.75&ndash;3.00/L</td><td class="n">0.563&ndash;0.565</td><td class="n">0.337&ndash;0.342</td></tr>
+<tr><td>Battery cost</td><td>&plusmn;30&#8239;%</td><td class="n">0.519&ndash;0.610</td><td class="n">0.294&ndash;0.389</td></tr>
+<tr><td>ESMAP costs</td><td>25th&ndash;75th pct.</td><td class="n">0.533&ndash;0.648</td><td class="n">0.309&ndash;0.427</td></tr>
+<tr><td>Shortfall cap</td><td>5&#8239;% &rarr; 0&#8239;%</td><td class="n">0.573</td><td class="n">0.359</td></tr>
+<tr><td>Growth, sized for today</td><td>year 5</td><td class="n">0.554</td><td class="n">0.330</td></tr>
+<tr><td>Growth, sized for year 5</td><td>year 5</td><td class="n">0.512</td><td class="n">0.327</td></tr>
+</tbody></table>
+<div class="tnote">Low health-centre case. Sized for today, the household shortfall in year five is 19.4&#8239;% (low) and 21.3&#8239;% (high); all other rows stay near or below 5&#8239;%.</div></div>
+
+<figure><img src="../figures/sensitivity_range.png" alt="Range of LCOE for each input"><figcaption>Fig. 7. Range of the delivered cost of energy (high household case) as each input moves across its range.</figcaption></figure>
+
+<h2>VII. Discussion</h2>
+<!--DISCUSSION-->
+<h3>Limitations</h3>
+<p>The results rest on one typical meteorological year, so a sequence of poor rainy seasons is not tested, and the rule-based dispatch is a single, simple strategy rather than an optimised forecast-based controller. Demand is derived from North-West survey households and author-chosen usage windows rather than a survey of Umon South, and willingness to pay is not studied. Costs are 2021 international medians rather than Nigerian quotations, and import duties, financing costs, subsidies and salvage value are excluded. The low-voltage network is represented only by a cost per customer, without losses, voltage limits or layout, and the diesel generator is linear with no minimum load.</p>
+
+<h2>VIII. Conclusion</h2>
+<p>For a 312-customer village in Cross River State at the current delivered diesel price, the least-cost mini-grid is PV with lithium-ion storage and no main generator, at about US$0.34/kWh if households use electricity like grid-connected rural homes, roughly a third of the cost of diesel-only supply. Checking the optimised design without perfect foresight shows that the health centre and school would still lose supply for several hundred hours a year; a 3&ndash;5&#8239;kW backup generator reserved for them is a cheap remedy. The design holds for any diesel price above about US$1.50/L, and its cost is governed mainly by equipment prices and by how fast demand grows. Future work should test multiple weather years, model the village&rsquo;s low-voltage network, and compare the resulting tariff with households&rsquo; current spending on generator fuel.</p>
+
+<h2>Data and Code Availability</h2>
+<p class="ni">All code, the scripts that download the public data, and the notebooks that produce every figure and table are available at github.com/oluwadamme/village-minigrid. Software: PyPSA 1.4.0, HiGHS 1.16.0, RAMP 0.5.2.</p>
+
+<h2>References</h2>
+<div class="refs"><!--REFS--></div>
+
+</div>
+</body>
+</html>

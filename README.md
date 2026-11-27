@@ -6,7 +6,7 @@ A solar mini-grid design study for Umon South (Biase LGA, Cross River State): ab
 
 > A modelling study built on public data, not a site survey. Designs assume one typical weather year.
 
-**Two-page write-up:** [report/village_minigrid.pdf](report/village_minigrid.pdf)
+**Paper (IEEE style, 6 pages):** [report/village_minigrid_paper.pdf](report/village_minigrid_paper.pdf) · **Two-page summary:** [report/village_minigrid.pdf](report/village_minigrid.pdf)
 
 ## The short answer
 
@@ -111,7 +111,7 @@ Run the notebooks in `notebooks/` in order (01, 02, 03). The first run downloads
 | `src/model.py` | The PyPSA model, hand checks and the no-foresight run |
 | `src/sensitivity.py` | The one-at-a-time sweeps |
 | `notebooks/` | 01 site and demand, 02 least-cost mix, 03 sensitivity |
-| `figures/`, `report/` | Figures and the two-page write-up |
+| `figures/`, `report/` | Figures, the paper (`paper_src.html` + `build_paper.py`) and the two-page summary |
 
 ## Data sources
 
