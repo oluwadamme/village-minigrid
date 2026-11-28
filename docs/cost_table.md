@@ -12,7 +12,7 @@ Finance: **10 % real discount rate, 20-year project life** (your choice; ESMAP's
 | Battery inverter + energy management | $415 /kW | ₦577,576 /kW | ESMAP 2022, Table 1.4, median of 313 | $325-716 |
 | Diesel generator (equipment) | $172 /kW ($138 /kVA at pf 0.8) | ₦239,381 /kW | Esan et al. 2019 (Heliyon), Nigerian retail prices of 200/100/50 kVA sets, 2019, at ₦350/$ | none yet |
 | Diesel fuel, delivered | ₦3,727.74 /L = $2.68 /L | | NBS Cross River price May 2026 (₦3,388.85, via Legit.ng) + 10 % transport (your choice) | planned diesel sweep |
-| Generator fuel use | 0.33 L/kWh effective | | HOMER manual worked example (50 kW set: 0.273 L/kWh slope + 0.033 L/h per rated kW), evaluated at half load | |
+| Generator fuel use | 0.339 L/kWh effective | | HOMER manual worked example (50 kW set: 0.273 L/kWh slope + 0.033 L/h per rated kW), evaluated at half load | |
 | PV upkeep | $10 /kW per year | ₦13,918 | ESMAP 2022, note 12 | |
 | Battery upkeep | $10 /kW per year | ₦13,918 | ESMAP 2022, note 12 | |
 | Generator upkeep (non-fuel) | $0.03 /kWh | ₦41.75 /kWh | ESMAP 2022, note 12 | |
@@ -32,11 +32,11 @@ Finance: **10 % real discount rate, 20-year project life** (your choice; ESMAP's
 | Item | Value | Source |
 |---|---|---|
 | Distribution network and meters | $250 per customer (median; 75th pct $331) | ESMAP 2022, Table 1.4 |
-| Balance of system (generator housing, structures, fencing, civil works) | average $524 per kW (2021) | ESMAP 2022, text near Figure 1.10 |
+| Balance of system (genset, structures, fencing, civil works, powerhouse, cooling) | $340 per kWp of PV (2021 average, read from the chart) | ESMAP 2022, Figure 1.10 |
 | Staff | $5,100 per year (3 staff, up to 500 customers) | ESMAP 2022, modelling assumptions |
 
 ## Known weaknesses
 
 - The generator price is equipment only, from 2019 retail prices converted at the 2019 rate; installation is not included.
-- The linear model cannot charge for running a generator at low load; the 0.33 L/kWh figure is a compromise between full-load (about 0.31) and quarter-load (about 0.40) fuel use from the same curve.
+- The linear model cannot charge for running a generator at low load; the 0.339 L/kWh figure (0.273 + 0.033/0.5) is a compromise between full-load (about 0.31) and quarter-load (about 0.40) fuel use from the same curve.
 - The diesel price is from May 2026, the exchange rate from November 2026.

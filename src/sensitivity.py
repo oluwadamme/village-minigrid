@@ -7,9 +7,15 @@ the final design in notebook 02. Results are for clinic 'low' unless stated.
 Sweeps (agreed in the project plan):
     diesel      delivered price per litre, from cheap to well above today's
     battery     Li-ion cost -30 % / +30 % around the ESMAP median
-    components  ESMAP 25th and 75th percentiles for PV, battery and inverter together
+    components  ESMAP 25th and 75th percentiles for PV, battery and inverter, each swept
+                alone (others at the median); plus all three together as outer bounds
+                (ESMAP's note says the percentiles should not be read together)
     reliability households may go without 0 %, 1 % or 5 % of their energy
-    growth      household demand +5 % a year for 5 years: size for today, or for year 5
+    discount    real discount rate 6.41 % (ESMAP's), 10 % (base), 15 %
+    growth      households grow 5 % a year in years 1-5, flat to year 20 (commercial and
+                public loads do not grow). Size for today or for year 5; reported as the
+                year-5 shortfall and as a lifetime delivered cost over 20 years.
+Distribution cost is held at 312 customers throughout (it does not grow with demand).
 """
 import numpy as np
 import pandas as pd
@@ -49,11 +55,17 @@ def battery(demand, pv, dem):
 
 
 def components(demand, pv, dem):
+    """PV, battery and inverter cost percentiles one at a time, then all together."""
+    pct = {"PV": ("pv_cost", "pv_capex"), "battery": ("battery_cost", "battery_capex"),
+           "inverter": ("inverter_cost", "inverter_capex")}
     out = []
+    for name, (kw, comp) in pct.items():
+        for label, i in (("25th percentile", 0), ("75th percentile", 1)):
+            out.append(_point(demand, pv, f"ESMAP cost: {name} only", label, demand=dem,
+                              cost_kw={kw: cst.COMPONENTS[comp][3][i]}))
     for label, i in (("25th percentile", 0), ("median", None), ("75th percentile", 1)):
-        kw = {} if i is None else {"pv_cost": cst.COMPONENTS["pv_capex"][3][i], "battery_cost": cst.COMPONENTS["battery_capex"][3][i],
-                                   "inverter_cost": cst.COMPONENTS["inverter_capex"][3][i]}
-        out.append(_point(demand, pv, "ESMAP component costs", label, demand=dem, cost_kw=kw))
+        kw = {} if i is None else {k: cst.COMPONENTS[c][3][i] for k, c in pct.values()}
+        out.append(_point(demand, pv, "all components (bounds)", label, demand=dem, cost_kw=kw))
     return out
 
 
@@ -61,19 +73,51 @@ def reliability(demand, pv, dem):
     return [_point(demand, pv, "households unserved target %", 100 * u, demand=dem, unserved_share=u) for u in (0.0, 0.01, 0.05)]
 
 
-def growth(demand, pv, dem, rate=0.05, years=5):
-    """Size for today and run 5 years of growth through it, or size for year 5."""
-    grown = demand.copy()
-    grown[f"households_{dem}"] = demand[f"households_{dem}"] * (1 + rate) ** years
+def discount(demand, pv, dem):
+    return [_point(demand, pv, "discount rate %", label, demand=dem, cost_kw={"rate": r})
+            for label, r in (("6.41", 0.0641), ("10.0", cst.DISCOUNT_RATE), ("15.0", 0.15))]
+
+
+GROWTH_RATE, GROWTH_YEARS = 0.05, 5
+
+
+def _grown(demand, dem, year):
+    g = demand.copy()
+    g[f"households_{dem}"] = demand[f"households_{dem}"] * (1 + GROWTH_RATE) ** min(year, GROWTH_YEARS)
+    return g
+
+
+def lifetime_lcoe(n, s, case, demand, pv, dem, rate=cst.DISCOUNT_RATE) -> dict:
+    """Delivered cost over the 20-year project: sum of discounted yearly costs / sum of
+    discounted served energy. Capital is the same annualised charge every year; fuel,
+    battery wear and served energy come from a rule run on each year's demand (years 5-20
+    are identical, so six distinct runs). Year 0 is today's demand."""
+    cost = energy = 0.0
+    snap = {}
+    for y in range(1, cst.PROJECT_YEARS + 1):
+        k = min(y, GROWTH_YEARS)
+        if k not in snap:
+            snap[k] = m.final_design(n, s, case, _grown(demand, dem, k), pv)
+        f = snap[k]
+        df = (1 + rate) ** -y
+        cost += f["total cost $/yr"] * df
+        energy += f["served kWh/yr"] * df
+    return {"lifetime LCOE delivered $/kWh": cost / energy}
+
+
+def growth(demand, pv, dem):
+    """Size for today, or for year 5; run through the growth path."""
     case = m.Case(design="hybrid", demand=dem)
     n_today, s_today = m.solve(case, demand, pv)
-    f_today = m.final_design(n_today, s_today | {"case": case.name}, case, grown, pv)   # today's sizes, year-5 demand
-    n5, s5 = m.solve(case, grown, pv)
-    f5 = m.final_design(n5, s5 | {"case": case.name}, case, grown, pv)
+    grown5 = _grown(demand, dem, GROWTH_YEARS)
+    n5, s5 = m.solve(case, grown5, pv)
     rows = []
-    for label, f in (("sized for today, run in year 5", f_today), ("sized for year 5", f5)):
+    for label, n, s in (("sized for today", n_today, s_today), ("sized for year 5", n5, s5)):
+        s = s | {"case": case.name}
+        f = m.final_design(n, s, case, grown5, pv)            # year-5 snapshot
         rows.append({"sweep": "demand growth", "value": label, "demand": dem, "clinic": case.clinic,
-                     **{k: v for k, v in f.items() if k != "case"}})
+                     "main diesel kW": s["diesel kW"], **{k: v for k, v in f.items() if k != "case"},
+                     **lifetime_lcoe(n, s, case, demand, pv, dem)})
     return rows
 
 
@@ -81,6 +125,6 @@ def run_all(demand, pv) -> tuple[pd.DataFrame, pd.DataFrame]:
     rows, dsl = [], []
     for dem in ("low", "high"):
         rows += diesel(demand, pv, dem) + battery(demand, pv, dem) + components(demand, pv, dem)
-        rows += reliability(demand, pv, dem) + growth(demand, pv, dem)
+        rows += reliability(demand, pv, dem) + discount(demand, pv, dem) + growth(demand, pv, dem)
         dsl += diesel_only_lcoe(demand, pv, dem)
     return pd.DataFrame(rows), pd.DataFrame(dsl)

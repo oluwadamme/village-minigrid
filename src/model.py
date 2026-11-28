@@ -16,7 +16,7 @@ Network (one AC bus, hourly, 8,760 steps, local time):
                   coming cloudy spell. simulate_rule() re-runs the chosen sizes with a
                   simple rule and no foresight, to show what an operator would really get.
 The objective is the yearly cost: annualised investments plus fuel and upkeep (costs.py).
-Fixed costs (distribution, balance of system, staff) are added afterwards for the cost
+Fixed costs (distribution, staff; balance of system scales with PV and is in the PV cost) are added afterwards for the cost
 per kWh; they do not change the design.
 
 Designs: "diesel_only" (no PV, no battery), "pv_battery" (no diesel), "hybrid" (all).
@@ -108,6 +108,18 @@ def solve(case: Case, demand: pd.DataFrame, pv_per_kwp: pd.Series) -> tuple[pyps
     return n, summarise(n, case)
 
 
+def battery_wear(bat_kwh: float, cycles: float, case: Case) -> tuple[float, float]:
+    """Battery life and the extra yearly cost of dying early. 3,000 full cycles: if it cycles
+    more than 300 times a year it wears out before its 10-year calendar life, so re-annualise
+    its cost over the shorter life (after the fact; the design itself assumes 10 years)."""
+    rate = case.cost_kw.get("rate") or cst.DISCOUNT_RATE
+    cal = cst.LIFETIME_YEARS["battery"]
+    life = min(cal, cst.BATTERY["cycles"] / cycles) if cycles else cal
+    price = case.cost_kw.get("battery_cost") or cst.COMPONENTS["battery_capex"][0]
+    extra = bat_kwh * price * (cst.crf(life, rate) - cst.crf(cal, rate)) if bat_kwh else 0.0
+    return life, extra
+
+
 def summarise(n: pypsa.Network, case: Case) -> dict:
     c = cst.annual_costs(**case.cost_kw)
     gen = n.generators_t.p
@@ -125,15 +137,10 @@ def summarise(n: pypsa.Network, case: Case) -> dict:
     # yearly cost recomputed from sizes and flows, independently of PyPSA's objective
     yearly = (pv_kwp * c["pv_per_kwp_yr"] + bat_kwh * c["battery_per_kwh_yr"] + inv_kw * c["inverter_per_kw_yr"]
               + diesel_kw * c["genset_per_kw_yr"] + diesel_kwh * c["genset_per_kwh"])
-    fixed = sum(cst.fixed_annual(CUSTOMERS, (hh_load + crit_load).max()).values())
+    fixed = sum(cst.fixed_annual(CUSTOMERS, case.cost_kw.get("rate")).values())
     litres = diesel_kwh * cst.FUEL_L_PER_KWH
-    # Battery wear: 3,000 full cycles. If it cycles more than 300 times a year it dies before
-    # its 10-year calendar life; re-annualise its cost over the shorter life (after the fact,
-    # so the design itself still assumes 10 years).
     cycles = discharged / usable if usable else 0.0
-    bat_life = min(cst.LIFETIME_YEARS["battery"], cst.BATTERY["cycles"] / cycles) if cycles else cst.LIFETIME_YEARS["battery"]
-    bat_price = case.cost_kw.get("battery_cost") or cst.COMPONENTS["battery_capex"][0]
-    bat_extra = bat_kwh * bat_price * (cst.crf(bat_life) - cst.crf(cst.LIFETIME_YEARS["battery"])) if bat_kwh else 0.0
+    bat_life, bat_extra = battery_wear(bat_kwh, cycles, case)
     # When households lose power: hours with any shortfall, longest run, worst month
     short = gen["unserved"] > 1e-6
     runs = (short != short.shift()).cumsum()[short]
@@ -196,10 +203,12 @@ def simulate_rule(n: pypsa.Network, case: Case, demand: pd.DataFrame, pv_per_kwp
                   reserve_share: float = 0.0, backup_kw: float = 0.0) -> dict:
     """Operate the optimised sizes hour by hour with no foresight.
 
-    Rule: solar serves the load first; surplus charges the battery (inverter limit);
-    a deficit is met from the battery down to its 20 % floor (inverter limit), then from
-    the generator if there is one; whatever is still missing is cut from households first
-    and from the clinic and school only as a last resort.
+    Rule: solar serves the load first; surplus charges the battery (inverter limit).
+    A deficit is then met in this order within each hour: the clinic/school part from the
+    battery (down to its 20 % floor, inverter limit), then households from the battery
+    (down to the floor, or the reserve if there is one), then from the generator if there
+    is one (clinic/school first); whatever is still missing is cut from households, and
+    from the clinic and school only if nothing else is left.
 
     reserve_share: households are served from the battery only while its charge is above
         this share of its size; below it, the battery is kept for the clinic and school.
@@ -211,38 +220,68 @@ def simulate_rule(n: pypsa.Network, case: Case, demand: pd.DataFrame, pv_per_kwp
     cap, inv = get("stores", "battery", "e_nom_opt"), get("links", "inverter discharge", "p_nom_opt")
     eta = np.sqrt(cst.BATTERY["round_trip"])
     floor = cap * (1 - cst.BATTERY["depth_of_discharge"])
+    reserve = max(floor, cap * reserve_share)
     hh = demand[f"households_{case.demand}"].to_numpy()
     crit = (demand["school"] + demand[f"clinic_{case.clinic}"]).to_numpy()
     pv = pv_kwp * pv_per_kwp.to_numpy()
+    month = demand.index.month.to_numpy()
     e = cap  # start full
-    hh_cut = crit_cut = diesel = 0.0
-    hh_hours = crit_hours = 0
+    hh_cut = crit_cut = diesel = discharged = 0.0
+    hh_hours = crit_hours = longest = run = 0
+    monthly = np.zeros(13)
     for t in range(len(hh)):
         need = hh[t] + crit[t] - pv[t]
         if need <= 0:
             e = min(cap, e + min(-need, inv) * eta)
+            run = 0
             continue
-        # critical part of the deficit can use the battery down to its floor; the household
-        # part only down to the reserve
-        crit_need = max(0.0, min(need, crit[t] - pv[t])) if pv[t] < crit[t] else 0.0
+        crit_need = max(0.0, crit[t] - pv[t])
         hh_need = need - crit_need
-        reserve = max(floor, cap * reserve_share)
-        from_bat_hh = min(hh_need, inv, max(0.0, (e - reserve) * eta))
-        from_bat_cr = min(crit_need, inv - from_bat_hh, max(0.0, (e - from_bat_hh / eta - floor) * eta)) if eta else 0.0
-        e -= (from_bat_hh + from_bat_cr) / eta if eta else 0
+        from_bat_cr = min(crit_need, inv, max(0.0, (e - floor) * eta))
+        e -= from_bat_cr / eta
+        from_bat_hh = min(hh_need, inv - from_bat_cr, max(0.0, (e - reserve) * eta))
+        e -= from_bat_hh / eta
+        discharged += from_bat_cr + from_bat_hh
         hh_need -= from_bat_hh; crit_need -= from_bat_cr
         g = min(hh_need + crit_need, gen_kw); diesel += g
         take_cr = min(g, crit_need); crit_need -= take_cr; hh_need -= g - take_cr
         b = min(crit_need, backup_kw); diesel += b; crit_need -= b
         if hh_need > 1e-9:
-            hh_cut += hh_need; hh_hours += 1
+            hh_cut += hh_need; hh_hours += 1; monthly[month[t]] += hh_need
+            run += 1; longest = max(longest, run)
+        else:
+            run = 0
         if crit_need > 1e-9:
             crit_cut += crit_need; crit_hours += 1
+    usable = cap * cst.BATTERY["depth_of_discharge"]
     return {"unserved % of households (rule)": 100 * hh_cut / hh.sum(),
             "hours with household shortfall (rule)": hh_hours,
+            "longest household outage h (rule)": longest,
+            "battery full cycles/yr (rule)": discharged / usable if usable else 0.0,
             "clinic/school kWh not served (rule)": crit_cut, "clinic/school hours cut (rule)": crit_hours,
+            "household kWh not served (rule)": hh_cut,
+            "household kWh not served by month (rule)": monthly[1:],
             "diesel share % (rule)": 100 * diesel / (hh.sum() + crit.sum()),
             "diesel kWh (rule)": diesel, "served kWh (rule)": hh.sum() + crit.sum() - hh_cut - crit_cut}
+
+
+def _rule_cost(s: dict, case: Case, r: dict, backup_kw: float) -> dict:
+    """Yearly cost of the optimised sizes (plus a backup generator) operated as in the rule run r.
+
+    Capital from the optimised sizes; ALL generator running costs (main and backup) and the
+    battery wear from the rule run, so nothing is counted twice."""
+    c = cst.annual_costs(**case.cost_kw)
+    capital = (s["PV kWp"] * c["pv_per_kwp_yr"] + s["battery kWh"] * c["battery_per_kwh_yr"]
+               + s["inverter kW"] * c["inverter_per_kw_yr"] + (s["diesel kW"] + backup_kw) * c["genset_per_kw_yr"])
+    running = r["diesel kWh (rule)"] * c["genset_per_kwh"]
+    life, wear = battery_wear(s["battery kWh"], r["battery full cycles/yr (rule)"], case)
+    litres = r["diesel kWh (rule)"] * cst.FUEL_L_PER_KWH
+    total = capital + running + wear + s["fixed cost $/yr"]
+    return {"backup capital $/yr": backup_kw * c["genset_per_kw_yr"], "diesel running $/yr": running,
+            "battery wear extra $/yr": wear, "battery life years (rule)": life, "total cost $/yr": total,
+            "diesel litres/yr": litres, "CO2 t/yr": litres * CO2_KG_PER_L / 1000,
+            "LCOE delivered $/kWh": total / r["served kWh (rule)"],
+            "LCOE delivered N/kWh": total / r["served kWh (rule)"] * cst.FX_NGN_PER_USD}
 
 
 def final_design(n: pypsa.Network, s: dict, case: Case, demand: pd.DataFrame, pv_per_kwp: pd.Series) -> dict:
@@ -251,27 +290,60 @@ def final_design(n: pypsa.Network, s: dict, case: Case, demand: pd.DataFrame, pv
     The optimisation keeps the clinic on with perfect foresight; run with a simple rule it
     would not. A backup generator sized to the clinic + school peak (rounded up to whole
     kW) closes that gap. Capital comes from the optimised sizes plus the backup; all
-    generator fuel, upkeep and wear (main and backup) come from the no-foresight run, as
-    do every reliability figure and the kWh served.
+    generator fuel, upkeep and wear (main and backup), the battery wear (from the rule
+    run's cycles) and every reliability figure and the kWh served come from the
+    no-foresight run.
     """
     crit = demand["school"] + demand[f"clinic_{case.clinic}"]
     backup_kw = float(np.ceil(crit.max()))
     r = simulate_rule(n, case, demand, pv_per_kwp, backup_kw=backup_kw)
-    c = cst.annual_costs(**case.cost_kw)
-    # Capital from the optimised sizes; ALL generator running costs (main and backup)
-    # from the no-foresight run, so nothing is counted twice.
-    capital = (s["PV kWp"] * c["pv_per_kwp_yr"] + s["battery kWh"] * c["battery_per_kwh_yr"]
-               + s["inverter kW"] * c["inverter_per_kw_yr"] + (s["diesel kW"] + backup_kw) * c["genset_per_kw_yr"])
-    running = r["diesel kWh (rule)"] * c["genset_per_kwh"]
-    backup_cost = backup_kw * c["genset_per_kw_yr"]
-    litres = r["diesel kWh (rule)"] * cst.FUEL_L_PER_KWH
-    total = capital + running + s["battery wear extra $/yr"] + s["fixed cost $/yr"]
+    k = _rule_cost(s, case, r, backup_kw)
     return {"case": s["case"], "PV kWp": s["PV kWp"], "battery kWh": s["battery kWh"], "inverter kW": s["inverter kW"],
             "main diesel kW": s["diesel kW"], "backup generator kW": backup_kw,
             "households unserved %": r["unserved % of households (rule)"],
             "hours with household shortfall": r["hours with household shortfall (rule)"],
+            "longest household outage h": r["longest household outage h (rule)"],
             "clinic/school hours cut": r["clinic/school hours cut (rule)"],
-            "diesel litres/yr": litres, "CO2 t/yr": litres * CO2_KG_PER_L / 1000,
-            "backup capital $/yr": backup_cost, "diesel running $/yr": running, "total cost $/yr": total,
-            "LCOE delivered $/kWh": total / r["served kWh (rule)"],
-            "LCOE delivered N/kWh": total / r["served kWh (rule)"] * cst.FX_NGN_PER_USD}
+            "battery full cycles/yr": r["battery full cycles/yr (rule)"],
+            "battery life years": k["battery life years (rule)"],
+            "diesel litres/yr": k["diesel litres/yr"], "CO2 t/yr": k["CO2 t/yr"],
+            "backup capital $/yr": k["backup capital $/yr"], "diesel running $/yr": k["diesel running $/yr"],
+            "battery wear extra $/yr": k["battery wear extra $/yr"], "total cost $/yr": k["total cost $/yr"],
+            "served kWh/yr": r["served kWh (rule)"],
+            "LCOE delivered $/kWh": k["LCOE delivered $/kWh"], "LCOE delivered N/kWh": k["LCOE delivered N/kWh"]}
+
+
+RESERVE_GRID = np.round(np.arange(0.20, 0.4501, 0.01), 2)
+
+
+def reserve_vs_backup(n: pypsa.Network, s: dict, case: Case, demand: pd.DataFrame, pv_per_kwp: pd.Series) -> dict:
+    """Fair comparison of the two ways to keep the clinic and school on without foresight.
+
+    (a) the smallest battery reserve threshold (share of capacity, 0.20-0.45 in steps of
+        0.01, no backup generator) that cuts the clinic/school in zero hours;
+    (b) the backup generator of final_design.
+    Reports household shortfall, extra household kWh lost against the plain rule (no reserve,
+    no backup), and the backup's yearly cost and diesel use."""
+    plain = simulate_rule(n, case, demand, pv_per_kwp)
+    out = {"case": s["case"], "plain rule: household %": plain["unserved % of households (rule)"],
+           "plain rule: critical hours cut": plain["clinic/school hours cut (rule)"],
+           "plain rule: household hours": plain["hours with household shortfall (rule)"],
+           "plain rule: longest outage h": plain["longest household outage h (rule)"],
+           "threshold": None}
+    for th in RESERVE_GRID:
+        r = simulate_rule(n, case, demand, pv_per_kwp, reserve_share=float(th))
+        if r["clinic/school hours cut (rule)"] == 0:
+            k = _rule_cost(s, case, r, 0.0)
+            out.update({"threshold": float(th), "reserve: household %": r["unserved % of households (rule)"],
+                        "reserve: household hours": r["hours with household shortfall (rule)"],
+                        "reserve: longest outage h": r["longest household outage h (rule)"],
+                        "reserve: extra household kWh lost": r["household kWh not served (rule)"] - plain["household kWh not served (rule)"],
+                        "reserve: LCOE $/kWh": k["LCOE delivered $/kWh"], "reserve: litres/yr": k["diesel litres/yr"]})
+            break
+    f = final_design(n, s, case, demand, pv_per_kwp)
+    out.update({"backup: household %": f["households unserved %"], "backup: household hours": f["hours with household shortfall"],
+                "backup: longest outage h": f["longest household outage h"], "backup: critical hours cut": f["clinic/school hours cut"],
+                "backup: kW": f["backup generator kW"], "backup: litres/yr": f["diesel litres/yr"],
+                "backup: annual cost $/yr": f["backup capital $/yr"] + f["diesel running $/yr"],
+                "backup: LCOE $/kWh": f["LCOE delivered $/kWh"]})
+    return out
